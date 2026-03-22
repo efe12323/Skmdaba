@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Sora Filigransız Link Çıkarıcı (Kişisel)</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f0f2f5;
+      margin: 0;
+      padding: 20px;
+      color: #333;
+    }
+    .container {
+      max-width: 600px;
+      margin: 40px auto;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+      padding: 32px;
+    }
+    h1 {
+      text-align: center;
+      color: #0d47a1;
+      margin-bottom: 28px;
+    }
+    input[type="url"] {
+      width: 100%;
+      padding: 14px;
+      font-size: 16px;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      box-sizing: border-box;
+      margin-bottom: 16px;
+    }
+    input[type="url"]:focus {
+      outline: none;
+      border-color: #0d47a1;
+      box-shadow: 0 0 0 3px rgba(13,71,161,0.15);
+    }
+    button {
+      width: 100%;
+      padding: 14px;
+      font-size: 17px;
+      background: #0d47a1;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    button:hover {
+      background: #1565c0;
+    }
+    button:disabled {
+      background: #aaa;
+      cursor: not-allowed;
+    }
+    #result {
+      margin-top: 30px;
+      padding: 16px;
+      background: #e8f0fe;
+      border-radius: 8px;
+      word-break: break-all;
+    }
+    #result a {
+      color: #0d47a1;
+      text-decoration: none;
+      font-weight: 500;
+    }
+    #result a:hover {
+      text-decoration: underline;
+    }
+    #error {
+      margin-top: 20px;
+      color: #d32f2f;
+      text-align: center;
+    }
+    small {
+      color: #666;
+      display: block;
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h1>Sora Filigransız Link</h1>
+    
+    <input type="url" id="soraUrl" placeholder="https://sora.chatgpt.com/p/s_..." required />
+    <button id="btnGet">Filigransız Linki Çek</button>
+
+    <div id="result" style="display:none;">
+      <strong>Filigransız Video Linki:</strong><br>
+      <a id="videoLink" href="#" target="_blank"></a>
+      <small>Sağ tık → Farklı kaydet ile indirebilirsin. Link süresi sınırlı olabilir.</small>
+    </div>
+
+    <div id="error"></div>
+  </div>
+
+  <script>
+    const input = document.getElementById('soraUrl');
+    const btn = document.getElementById('btnGet');
+    const resultDiv = document.getElementById('result');
+    const linkEl = document.getElementById('videoLink');
+    const errorDiv = document.getElementById('error');
+
+    btn.addEventListener('click', async () => {
+      errorDiv.textContent = '';
+      resultDiv.style.display = 'none';
+      btn.disabled = true;
+      btn.textContent = 'Çekiliyor...';
+
+      const url = input.value.trim();
+      if (!url || !url.includes('sora.chatgpt.com/p/')) {
+        showError('Geçerli bir Sora paylaşım linki girin.');
+        resetButton();
+        return;
+      }
+
+      try {
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Accept': 'text/html',
+          },
+          redirect: 'follow',
+          mode: 'cors'  // Not: CORS engeli olursa proxy gerekir
+        });
+
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+        const html = await response.text();
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+
+        // Sora player'daki video etiketini bul
+        const video = doc.querySelector('video');
+        let src = video?.getAttribute('src');
+
+        if (!src) {
+          // Bazen source içinde oluyor
+          const source = doc.querySelector('video source');
+          src = source?.getAttribute('src');
+        }
+
+        if (src) {
+          // Relative ise tam URL yap
+          if (src.startsWith('/')) {
+            src = 'https://sora.chatgpt.com' + src;
+          }
+          // Bazı durumlarda videos.openai.com zaten tam geliyor
+
+          linkEl.href = src;
+          linkEl.textContent = src;
+          resultDiv.style.display = 'block';
+        } else {
+          showError('Video kaynağı bulunamadı. Sayfa yapısı değişmiş olabilir.');
+        }
+      } catch (err) {
+        showError('Hata: ' + err.message + ' (CORS engeli veya geçersiz link olabilir)');
+      }
+
+      resetButton();
+    });
+
+    function showError(msg) {
+      errorDiv.textContent = msg;
+    }
+
+    function resetButton() {
+      btn.disabled = false;
+      btn.textContent = 'Filigransız Linki Çek';
+    }
+
+    // Enter tuşu ile de çalışsın
+    input.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') btn.click();
+    });
+  </script>
+
+</body>
+  </html>
